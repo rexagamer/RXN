@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Countdown',
+      title: 'RXN',
       theme: ThemeData(
         colorScheme: ColorScheme.dark(
           primary: Colors.blue[900]!,
@@ -35,7 +35,8 @@ class BirthdayCountdown extends StatefulWidget {
   State<BirthdayCountdown> createState() => _BirthdayCountdownState();
 }
 
-class _BirthdayCountdownState extends State<BirthdayCountdown> {
+class _BirthdayCountdownState extends State<BirthdayCountdown>
+    with SingleTickerProviderStateMixin {
   final DateTime birthday = DateTime(2025, 8, 14);
   late ConfettiController _confettiController;
   bool isBirthday = false;
@@ -44,7 +45,8 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
   final Color primary = Colors.lightGreen[900]!;
   final Color secondary = Colors.lightGreen[800]!;
   final Color surface = Colors.lightGreen[700]!;
-
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
   // Easter egg states
   bool showR = false;
   bool showX = false;
@@ -57,10 +59,18 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
   double nDirection = 1;
   bool showScaryPage = true;
   bool showScaryText = false;
+  bool showScaryPage2 = false;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 3),
+    )..repeat(reverse: true);
+
+    _fadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
     _confettiController =
         ConfettiController(duration: const Duration(seconds: 5));
 
@@ -94,6 +104,21 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
             nPosition += 4 * nDirection;
             if (nPosition > 300 || nPosition < 0) nDirection *= -1;
           }
+        });
+      }
+    });
+    Future.delayed(const Duration(seconds: 10), () {
+      if (mounted) {
+        setState(() {
+          showScaryPage = false;
+        });
+
+        _checkBirthday();
+        _startTimer();
+
+        // 🔥 Add this to go to ScaryPage2 after 5 seconds
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) setState(() => showScaryPage2 = true);
         });
       }
     });
@@ -131,6 +156,8 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
   void dispose() {
     _timer.cancel();
     _confettiController.dispose();
+    _fadeController.dispose();
+
     super.dispose();
   }
 
@@ -155,133 +182,37 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
 
   @override
   Widget build(BuildContext context) {
+    Widget child;
+
     if (showScaryPage) {
-      return _buildScaryPage();
+      child = _buildScaryPage();
+    } else if (showScaryPage2) {
+      child = _buildScaryPage2();
+    } else if (isBirthday) {
+      child = _buildBirthdayCelebration();
+    } else {
+      child = _buildCountdown();
     }
-    if (isBirthday) {
-      return _buildBirthdayCelebration();
-    }
 
-    final days = timeUntilBirthday.inDays;
-    final hours = timeUntilBirthday.inHours.remainder(24);
-    final minutes = timeUntilBirthday.inMinutes.remainder(60);
-    final seconds = timeUntilBirthday.inSeconds.remainder(60);
-    final totalHours = timeUntilBirthday.inHours;
-    final totalMinutes = timeUntilBirthday.inMinutes;
-    final totalSeconds = timeUntilBirthday.inSeconds;
-    final weeks = days ~/ 7;
-
-    return Scaffold(
-      backgroundColor: primary,
-      body: Stack(
-        children: [
-          Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Main countdown
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'DAYS   HRS   MINS   SECS',
-                          style: TextStyle(
-                            fontSize: 14,
-                            letterSpacing: 5.0,
-                            color: Colors.white54,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          '${days.toString().padLeft(2, '0')} : ${hours.toString().padLeft(2, '0')} : ${minutes.toString().padLeft(2, '0')} : ${seconds.toString().padLeft(2, '0')}',
-                          style: const TextStyle(
-                            fontSize: 42,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'RobotoMono',
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Detailed breakdown
-                  Container(
-                    margin: const EdgeInsets.all(20),
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: secondary.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () => _toggleEasterEgg('R'),
-                          child: _buildTimeDetail('Weeks:', weeks.toString()),
-                        ),
-                        GestureDetector(
-                          onTap: () => _toggleEasterEgg('X'),
-                          child:
-                              _buildTimeDetail('Hours:', totalHours.toString()),
-                        ),
-                        GestureDetector(
-                          onTap: () => _toggleEasterEgg('N'),
-                          child: _buildTimeDetail(
-                              'Seconds:', totalSeconds.toString()),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Easter egg letters
-          if (showR)
-            Positioned(
-              left: rPosition,
-              top: 100,
-              child: const Text(
-                'R',
-                style: TextStyle(
-                  fontSize: 100,
-                  color: Colors.white24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          if (showX)
-            Positioned(
-              right: xPosition,
-              top: 200,
-              child: const Text(
-                'X',
-                style: TextStyle(
-                  fontSize: 100,
-                  color: Colors.white24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          if (showN)
-            Positioned(
-              left: nPosition,
-              bottom: 100,
-              child: const Text(
-                'N',
-                style: TextStyle(
-                  fontSize: 100,
-                  color: Colors.white24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
+    return AnimatedSwitcher(
+      duration: const Duration(seconds: 2),
+      switchInCurve: Curves.easeIn,
+      switchOutCurve: Curves.easeOut,
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+      child: KeyedSubtree(
+        key: ValueKey<String>(_currentPageKey()),
+        child: child,
       ),
     );
+  }
+
+  String _currentPageKey() {
+    if (showScaryPage) return 'scary1';
+    if (showScaryPage2) return 'scary2';
+    if (isBirthday) return 'birthday';
+    return 'countdown';
   }
 
   Widget _buildTimeDetail(String label, String value) {
@@ -365,6 +296,115 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
     );
   }
 
+  Widget _buildCountdown() {
+    final days = timeUntilBirthday.inDays;
+    final hours = timeUntilBirthday.inHours.remainder(24);
+    final minutes = timeUntilBirthday.inMinutes.remainder(60);
+    final seconds = timeUntilBirthday.inSeconds.remainder(60);
+    final totalHours = timeUntilBirthday.inHours;
+    final totalMinutes = timeUntilBirthday.inMinutes;
+    final totalSeconds = timeUntilBirthday.inSeconds;
+    final weeks = days ~/ 7;
+
+    return Scaffold(
+      backgroundColor: primary,
+      body: Stack(
+        children: [
+          Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'DAYS   HRS   MINS   SECS',
+                          style: TextStyle(
+                            fontSize: 14,
+                            letterSpacing: 5.0,
+                            color: Colors.white54,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '${days.toString().padLeft(2, '0')} : ${hours.toString().padLeft(2, '0')} : ${minutes.toString().padLeft(2, '0')} : ${seconds.toString().padLeft(2, '0')}',
+                          style: const TextStyle(
+                            fontSize: 42,
+                            fontWeight: FontWeight.bold,
+                            fontFamily: 'RobotoMono',
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: secondary.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _toggleEasterEgg('R'),
+                          child: _buildTimeDetail('Weeks:', weeks.toString()),
+                        ),
+                        GestureDetector(
+                          onTap: () => _toggleEasterEgg('X'),
+                          child:
+                              _buildTimeDetail('Hours:', totalHours.toString()),
+                        ),
+                        GestureDetector(
+                          onTap: () => _toggleEasterEgg('N'),
+                          child: _buildTimeDetail(
+                              'Seconds:', totalSeconds.toString()),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (showR)
+            Positioned(
+              left: rPosition,
+              top: 100,
+              child: const Text('R',
+                  style: TextStyle(
+                      fontSize: 100,
+                      color: Colors.white24,
+                      fontWeight: FontWeight.bold)),
+            ),
+          if (showX)
+            Positioned(
+              right: xPosition,
+              top: 200,
+              child: const Text('X',
+                  style: TextStyle(
+                      fontSize: 100,
+                      color: Colors.white24,
+                      fontWeight: FontWeight.bold)),
+            ),
+          if (showN)
+            Positioned(
+              left: nPosition,
+              bottom: 100,
+              child: const Text('N',
+                  style: TextStyle(
+                      fontSize: 100,
+                      color: Colors.white24,
+                      fontWeight: FontWeight.bold)),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildScaryPage() {
     return Scaffold(
       backgroundColor: Colors.black,
@@ -384,11 +424,31 @@ class _BirthdayCountdownState extends State<BirthdayCountdown> {
                 ),
               ),
               const SizedBox(height: 20),
-              Icon(
-                Icons.warning,
-                color: Colors.red[800],
-                size: 50,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildScaryPage2() {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'WAIT FOR IT....',
+                style: TextStyle(
+                  fontSize: 30,
+                  color: Colors.red[800],
+                  fontWeight: FontWeight.bold,
+                ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

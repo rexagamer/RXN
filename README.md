@@ -1,6 +1,6 @@
 # hbd_app
 
-A new Flutter project.
+JUST WAIT.
 
 ## Getting Started
 
